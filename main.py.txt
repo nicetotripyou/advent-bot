@@ -1,20 +1,108 @@
-import os
+mport os
+import json
+import time
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
+STATE_FILE = "state.json"
+COOLDOWN = 24 * 60 * 60  # 24 часа
+
+
+def load_state():
+    with open(STATE_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_state(state):
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f)
+
+
+def gifts_keyboard():
+    kb = InlineKeyboardMarkup(row_width=3)
+    kb.add(
+        InlineKeyboardButton("🎁 1 🐱", callback_data="gift"),
+        InlineKeyboardButton("🎁 2 🎮", callback_data="gift"),
+        InlineKeyboardButton("🎁 3 💪", callback_data="gift"),
+        InlineKeyboardButton("🎁 4 🌸", callback_data="gift"),
+        InlineKeyboardButton("🎁 5 🎬", callback_data="gift"),
+        InlineKeyboardButton("🎁 6 🎭", callback_data="gift"),
+        InlineKeyboardButton("🎁 7❤️", callback_data="gift"),
+    )
+    return kb
+
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    await message.answer(
+    text = (
         "ЮЮЮЮЮЛЛЛЛЛЛЛЛЛЯЯЯЯЯЯЯЯЯЯ 💛\n\n"
-        "Я запустился.\n"
-        "Я живой.\n"
-        "Это только начало 😏"
+        "Это не просто бот.\n"
+        "Это *очень опасная* штука.\n\n"
+        "Перед тобой 7 подарков 🎁\n"
+        "Они все разные.\n"
+        "Некоторые подозрительно крупные.\n\n"
+        "Выбирай любой.\n"
+        "Но помни:\n"
+        "👉 назад пути нет 😏"
     )
+    await message.answer(text, reply_markup=gifts_keyboard(), parse_mode="Markdown")
+
+
+@dp.callback_query_handler(lambda c: c.data == "gift")
+async def open_gift(call: types.CallbackQuery):
+    state = load_state()
+    now = time.time()
+
+    if state["opened"]:
+        remaining = int((state["opened_at"] + COOLDOWN - now) / 3600)
+        await call.answer(
+            f"Ноу ноу ноу, мистер фиш 🐟\n"
+            f"Ещё рано.\n"
+            f"Подожди примерно {remaining} часов 😌",
+            show_alert=True
+        )
+        return
+
+    # Иллюзия выбора
+    await call.message.answer(
+        "ОГО 😳\n"
+        "Вот ЭТОТ подарок?\n\n"
+        "Ты уверена?\n"
+        "Я бы на твоём месте ещё подумал...\n\n"
+        "Ладно.\n"
+        "Поздно 😏"
+    )
+
+    time.sleep(1)
+
+    await call.message.answer(
+        "🎶 *в голове начинает играть максимально всратая версия Титаника* 🎶\n\n"
+        "Ну всё.\n"
+        "Ты это сделала."
+    )
+
+    time.sleep(1)
+
+    # Открытие подарка
+    await call.message.answer(
+        "🎁 ПОДАРОК ОТКРЫВАЕТСЯ…\n\n"
+        "И знаешь что?\n"
+        "Какой бы номер ты ни выбрала —\n"
+        "*я всё равно хотел начать именно с этого.*\n\n"
+        "Потому что ты — мой главный подарок ❤️\n\n"
+        "А физический подарок я скажу лично 😉"
+    )
+
+    state["opened"] = True
+    state["opened_at"] = now
+    save_state(state)
+
+    await call.answer("Подарок открыт 💛", show_alert=True)
 
 
 if __name__ == "__main__":
